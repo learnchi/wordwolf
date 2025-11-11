@@ -1,0 +1,9 @@
+.btn-primary {
+  --bs-btn-active-color: #0d6efd;  /** #fffから上書き **/
+  --bs-btn-active-bg: #fff;  /** #0a58caから上書き **/
+}
+.btn-primary.falseword {
+  --bs-btn-active-color: #dc3545;
+  --bs-btn-active-bg: #fff;  /** #0a58caから上書き **/
+  --bs-btn-active-border-color: #dc3545;
+}
