@@ -1,6 +1,6 @@
-$(function(){
-    var resetTimer = null; // タイマーIDを保存する変数
-    var isClear = false; // ぜんぶひょうじボタンが押された
+document.addEventListener('DOMContentLoaded', function() {
+    let resetTimer = null; // タイマーIDを保存する変数
+    let isIdle = true; // ゲーム中ではない場合にtrue。
     // ワードバンク定義
     const wordbank = [
         ['ねこ', 'ヒョウ'],
@@ -14,22 +14,61 @@ $(function(){
         ['コロッケ', 'メンチカツ'],
         ['とりのからあげ', 'フライドチキン'],
         ['フライドポテト', 'ポテトサラダ'],
+        ['きゅうり', 'ズッキーニ'],
+        ['クッキー', 'ビスケット'],
+        ['目玉焼き', 'たまご焼き'],
+        ['牛乳', '豆乳'],
         ['たし算', 'かけ算'],
         ['スニーカー', 'サンダル'],
         ['ジャングルジム', 'すべり台'],
         ['家庭科室', '理科室'],
         ['えんぴつ', '色えんぴつ'],
         ['プール', '温泉'],
-        ['分度器', '定規'],
+        ['紅茶', 'ほうじ茶'],
     ];
-    var normalWord = '';
-    var falseWord = '';
-    var words = [];
-    
+    let wordstage = []; // 残りの単語ストック
+    let normalWord = '';
+    let falseWord = '';
+    let words = [];
+    // 配列をシャッフルする関数（Fisher-Yates方式）
+    function shuffle(array) {
+        const arr = array.slice(); // 元を壊さない
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+    }
     function reset() {
 
-        // ランダムに1組選ぶ
-        const pair = wordbank[Math.floor(Math.random() * wordbank.length)];
+        let selectedValue = parseInt($('input[name="attendCount"]:checked').val(), 10)|| 0;;
+
+        // ボタン表示非表示
+        $('button[id^="button-"]').each(function() {
+            const pt = parseInt($(this).attr('data-index'), 10);
+            
+            if (pt < selectedValue) {
+                $(this).parent().removeClass('d-none');
+            } else {
+                $(this).parent().addClass('d-none');
+            }
+        });
+
+        // 人数が選ばれていない場合は説明文を表示して抜ける
+        if (selectedValue <= 0) {
+            $('div#explanation').removeClass('d-none');
+            isIdle = true;
+            return;
+        }
+
+        // wordstageが空ならwordbankを再シャッフル
+        if (wordstage.length === 0) {
+            wordstage = shuffle(wordbank);
+            // console.log('wordstageを再生成:', wordstage);
+        }
+
+        // ステージから1組取り出し
+        const pair = wordstage.pop();
 
         // どちらをfalseWordにするかランダムで決める
         if (Math.random() < 0.5) {
@@ -40,109 +79,98 @@ $(function(){
             falseWord = pair[0];
         }
 
-        const selectedValue = parseInt($('input[name="attendCount"]:checked').val(), 10);
-        if (!selectedValue) {
-            console.log('人数が選択されていません');
-        } else {
-            words = Array(selectedValue).fill(normalWord); // すべてnormalWordで初期化
-            const falseIndex = Math.floor(Math.random() * selectedValue); // ランダム位置を1つ選ぶ
-            words[falseIndex] = falseWord; // その位置をfalseWordに
+        // console.log('選ばれたペア:', pair);
+        // console.log('normal:', normalWord, 'false:', falseWord);
 
-            // ボタン表示非表示
-            $('[id^="button-"]').each(function() {
-                const pt = parseInt($(this).attr('data-index'), 10);
-                
-                if (pt < selectedValue) {
-                    $(this).parent().removeClass('d-none');
-                } else {
-                    $(this).parent().addClass('d-none');
-                }
-            });
-        }
-        isClear = false;
+        words = Array(selectedValue).fill(normalWord); // すべてnormalWordで初期化
+        const falseIndex = Math.floor(Math.random() * selectedValue); // ランダム位置を1つ選ぶ
+        words[falseIndex] = falseWord; // その位置をfalseWordに
+        
+        // 説明の非表示
+        $('div#explanation').addClass('d-none');
+        isIdle = false;
     }
 
     // 初期リセット
     reset();
 
-  $('[id^="button-"]').on('click', function() {
-    // 全部表示が押された後ならボタン無効
-    if (isClear) {
-        return;
-    }
+    $('button[id^="button-"]').on('click', function() {
+        // 全部表示が押された後ならボタン無効
+        if (isIdle) {
+            return;
+        }
 
-    const $btn = $(this);
+        const $btn = $(this);
 
-    // タイマーが動いていれば破棄
-    if (resetTimer) {
-      clearTimeout(resetTimer);
-      resetTimer = null;
-    }
+        // タイマーが動いていれば破棄
+        if (resetTimer) {
+        clearTimeout(resetTimer);
+        resetTimer = null;
+        }
 
-    // 他のボタンをすべてOFF
-    $('[id^="button-"]').not($btn).removeClass('active').attr('aria-pressed', 'false').each(function() {
-      $(this).html($(this).attr('id').replace('button-', ''));
-    });
-
-    if ($btn.hasClass('active')) {
-        // 割り当てられたワードを表示
-        const pt = parseInt($(this).attr('data-index'), 10);
-        $btn.html(words[pt]);
-
-        resetTimer = setTimeout(function() {
-            // ボタンを非アクティブに戻す
-            $btn.removeClass('active').attr('aria-pressed', 'false');
-            $btn.html($btn.attr('id').replace('button-', ''));
-            resetTimer = null; // 終了後にクリア
-        }, 5000);
-    } else {
-        $btn.html($btn.attr('id').replace('button-', ''));
-    }
-
-  });
-  $('#reset').on('click', function() {
-
-    const $btn = $(this);
-
-    // タイマーが動いていれば破棄
-    if (resetTimer) {
-      clearTimeout(resetTimer);
-      resetTimer = null;
-    }
-    
-    if (isClear || confirm('最初からやりなおしますか？')) {
-        // すべてOFF
-        $('[id^="button-"]').removeClass('active').removeClass('falseword').attr('aria-pressed', 'false').each(function() {
-            $(this).html($(this).attr('id').replace('button-', ''));
+        // 他のボタンをすべてOFF
+        $('button[id^="button-"]').not($btn).removeClass('active').attr('aria-pressed', 'false').each(function() {
+        $(this).html($(this).attr('id').replace('button-', ''));
         });
 
-        // 人数のボタン分だけリセット
-        reset();
-    }
+        if ($btn.hasClass('active')) {
+            // 割り当てられたワードを表示
+            const pt = parseInt($(this).attr('data-index'), 10);
+            $btn.html(words[pt]);
 
-  });
-  $('#showall').on('click', function() {
-    const $btn = $(this);
-
-    // タイマーが動いていれば破棄
-    if (resetTimer) {
-      clearTimeout(resetTimer);
-      resetTimer = null;
-    }
-
-    // すべてON
-    $('[id^="button-"]').addClass('active').attr('aria-pressed', 'true').each(function() {
-        // 割り当てられたワードを表示
-        const pt = parseInt($(this).attr('data-index'), 10);
-        $(this).html(words[pt]);
-        // はずれワードの場合
-        if (falseWord === words[pt]) {
-            $(this).addClass('falseword');
+            resetTimer = setTimeout(function() {
+                // ボタンを非アクティブに戻す
+                $btn.removeClass('active').attr('aria-pressed', 'false');
+                $btn.html($btn.attr('id').replace('button-', ''));
+                resetTimer = null; // 終了後にクリア
+            }, 5000);
+        } else {
+            $btn.html($btn.attr('id').replace('button-', ''));
         }
+
     });
+    $('button#start').on('click', function() {
 
-    // リセットされるまで有効
-    isClear = true;
+        const $btn = $(this);
 
-  });
+        // タイマーが動いていれば破棄
+        if (resetTimer) {
+        clearTimeout(resetTimer);
+        resetTimer = null;
+        }
+        
+        if (isIdle || confirm('最初からやりなおしますか？')) {
+            // すべてOFF
+            $('button[id^="button-"]').removeClass('active').removeClass('falseword').attr('aria-pressed', 'false').each(function() {
+                $(this).html($(this).attr('id').replace('button-', ''));
+            });
+
+            // 人数のボタン分だけリセット
+            reset();
+        }
+
+    });
+    $('button#showall').on('click', function() {
+        const $btn = $(this);
+
+        // タイマーが動いていれば破棄
+        if (resetTimer) {
+            clearTimeout(resetTimer);
+            resetTimer = null;
+        }
+
+        // すべてON
+        $('[id^="button-"]').addClass('active').attr('aria-pressed', 'true').each(function() {
+            // 割り当てられたワードを表示
+            const pt = parseInt($(this).attr('data-index'), 10);
+            $(this).html(words[pt]);
+            // はずれワードの場合
+            if (falseWord === words[pt]) {
+                $(this).addClass('falseword');
+            }
+        });
+
+        isIdle = true;
+
+    });
 });
